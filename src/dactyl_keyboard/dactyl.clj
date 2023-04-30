@@ -8,6 +8,7 @@
 (defn deg2rad [degrees]
   (* (/ degrees 180) pi))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Shape parameters ;;
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -18,21 +19,23 @@
 (def α (/ π 12))                        ; curvature of the columns
 (def β (/ π 36))                        ; curvature of the rows
 (def centerrow (- nrows 3))             ; controls front-back tilt
-(def centercol 2)                       ; controls left-right tilt / tenting (higher number is more tenting)
+(def centercol 3)                       ; controls left-right tilt / tenting (higher number is more tenting)
 (def tenting-angle (/ π 12))            ; or, change this for more precise tenting control
 (def column-style
   (if (> nrows 5) :orthographic :standard))  ; options include :standard, :orthographic, and :fixed
 ; (def column-style :fixed)
-(def pinky-15u true)
+(def pinky-15u false)
 
 (defn column-offset [column] (cond
-                               (= column 2) [0 2.82 -4.5]
-                               (>= column 4) [0 -12 5.64]            ; original [0 -5.8 5.64]
+                               ; (= column 2) [0 2.82 -4.5]
+                               (= column 2) [0 2.82 -2.5]
+                               ; (>= column 4) [0 -12 5.64]            ; original [0 -5.8 5.64]
+                               (>= column 4) [0 -12 2]            ; original [0 -5.8 5.64]
                                :else [0 0 0]))
 
 (def thumb-offsets [6 -3 7])
 
-(def keyboard-z-offset 9)               ; controls overall height; original=9 with centercol=3; use 16 for centercol=2
+(def keyboard-z-offset 14.5)               ; controls overall height; original=9 with centercol=3; use 16 for centercol=2
 
 (def extra-width 2.5)                   ; extra space between the base of keys; original= 2
 (def extra-height 1.0)                  ; original= 0.5
@@ -53,7 +56,26 @@
 
 ; If you use Cherry MX or Gateron switches, this can be turned on.
 ; If you use other switches such as Kailh, you should set this as false
-(def create-side-nubs? true)
+(def create-side-nubs? false)
+
+;@@@@@@@@@@@@@@@@@@@@@@@@@@@
+;;;;;;;;;Wrist rest;;;;;;;;;;		
+;@@@@@@@@@@@@@@@@@@@@@@@@@@
+(def wrist-rest-on 1) 						;;0 for no rest 1 for a rest connection cut out in bottom case		
+(def wrist-rest-back-height 35)				;;height of the back of the wrist rest--Default 34
+(def wrist-rest-angle 20) 				 ;;angle of the wrist rest--Default 20
+(def wrist-rest-rotation-angle 9)			;;0 default The angle in counter clockwise the wrist rest is at		
+(def wrist-rest-ledge 3.5)					;;The height of ledge the silicone wrist rest fits inside
+(def wrist-rest-y-angle 0)					;;0 Default.  Controls the wrist rest y axis tilt (left to right)
+
+
+;;Wrist rest to case connections
+(def right_wrist_connecter_x   (if (== ncols 5) 13 25))
+(def middle_wrist_connecter_x   (if (== ncols 5) -5 0))
+(def left_wrist_connecter_x   (if (== ncols 5) -25 -25))
+
+(def wrist_right_nut_y (if (== ncols 5) 10 20.5))
+(def wrist_brse_position_x -1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; General variables ;;
@@ -96,7 +118,14 @@
                                              0
                                              (/ side-nub-thickness 2)])))
                       (translate [0 0 (- plate-thickness side-nub-thickness)]))
+
+        kailh-cutout (->> (cube (/ keyswitch-width 3) 1.6 (+ plate-thickness 1.8))
+                          (translate [0
+                                      (+ (/ 1.5 2) (+ (/ keyswitch-height 2)))
+                                      (/ plate-thickness)]))
+
         plate-half (union top-wall left-wall (if create-side-nubs? (with-fn 100 side-nub)))
+
         top-nub (->> (cube 5 5 retention-tab-hole-thickness)
                      (translate [(+ (/ keyswitch-width 2)) 0 (/ retention-tab-hole-thickness 2)]))
         top-nub-pair (union top-nub
@@ -650,11 +679,12 @@
 
 (defn screw-insert-all-shapes [bottom-radius top-radius height]
   (union (screw-insert 0 0         bottom-radius top-radius height [11 10 0])
-         (screw-insert 0 lastrow   bottom-radius top-radius height [0 0 0])
-        ;  (screw-insert lastcol lastrow  bottom-radius top-radius height [-5 13 0])
-        ;  (screw-insert lastcol 0         bottom-radius top-radius height [-3 6 0])
-         (screw-insert lastcol lastrow  bottom-radius top-radius height [0 12 0])
-         (screw-insert lastcol 0         bottom-radius top-radius height [0 7 0])
+         (screw-insert 0 lastrow   bottom-radius top-radius height [-2 0 0]) ; this one needs to be closer to the wall
+
+         (screw-insert lastcol lastrow  bottom-radius top-radius height [-5 13 0])  ; this is when the last col is one unit
+         (screw-insert lastcol 0         bottom-radius top-radius height [-3 6 0])  ; this is when the last col is one unit
+         ; (screw-insert lastcol lastrow  bottom-radius top-radius height [0 12 0])
+         ; (screw-insert lastcol 0         bottom-radius top-radius height [0 7 0])
          (screw-insert 1 lastrow         bottom-radius top-radius height [0 -16 0])))
 
 ; Hole Depth Y: 4.4
@@ -695,6 +725,188 @@
    (key-wall-brace lastcol cornerrow 0 -1 web-post-br lastcol cornerrow 0 -1 wide-post-br)
    (key-wall-brace lastcol 0 0 1 web-post-tr lastcol 0 0 1 wide-post-tr)))
 
+
+;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+;;;;;;;;;Wrist rest;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+;;next 2 are not needed
+#_(def wrist-rest-cut
+	(->> (scale [1 1 2]
+		(->> (scale [1 1 1] wrist-rest) (rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0])
+			(translate [0 0 (+ 5 wrist-rest-back-height)])) 
+		)
+	)
+)
+#_(def wrist-rest-sides 
+	(->> 
+		;(scale [2.5 2.5 1]
+			(difference
+			  (->> (scale[1.1, 1.2, 1]
+				;(hull 
+					(->> wrist-rest (rotate  (translate [0 0 wrist-rest-back-height])(/ (* π wrist-rest-angle) 180)  [1 1 0]) )
+					(->> wrist-rest (rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0])))
+				)
+			; (->> wrist-rest (rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0])(translate [0 -2 (+ 2 wrist-rest-back-height)]))
+				(->> wrist-rest-front-cut (rotate  (/ (* π wrist-rest-angle) 180)))
+			)	
+		;)
+	)
+)	
+(def wrist-rest-front-cut
+
+		(scale[1.1, 1, 1](->> (cylinder 7 200)(with-fn 300)
+			(translate [0 -13.4 0]))
+	;(->> (cube 18 10 15)(translate [0 -14.4 0]))
+))
+
+
+
+(def cut-bottom
+	(->>(cube 300 300 100)(translate [0 0 -50]))
+)
+
+(def h-offset
+	 (* (Math/tan(/ (* π wrist-rest-angle) 180)) 88)
+)
+
+(def scale-cos
+	  (Math/cos(/ (* π wrist-rest-angle) 180))
+)
+
+(def scale-amount 
+	(/ (* 83.7 scale-cos) 19.33)
+)
+
+(def wrist-rest	
+	(difference
+		 (scale [4.25  scale-amount  1] (difference (union
+			(difference 
+				;the main back circle
+						(scale[1.3, 1, 1](->> (cylinder 10 150)(with-fn 200)
+						(translate [0 0 0])))		
+					;front cut cube and circle
+				(scale[1.1, 1, 1](->> (cylinder 7 201)(with-fn 200)
+					(translate [0 -13.4 0]))
+				(->> (cube 18 10 201)(translate [0 -12.4 0]))
+				
+			))
+		;;side fillers
+			(->> (cylinder 6.8 200)(with-fn 200)
+				(translate [-6.15 -0.98 0]))
+				
+				(->> (cylinder 6.8 200)(with-fn 200)
+				(translate [6.15 -0.98 0]))
+		;;heart shapes at bottom		
+			(->> (cylinder 5.9 200)(with-fn 200)
+				(translate [-6.35 -2 0]))
+				
+				
+			(scale[1.01, 1, 1](->> (cylinder 5.9 200)(with-fn 200)
+			(translate [6.35 -2. 0])))
+				)
+			
+		)
+		)
+		
+		cut-bottom
+
+	)
+)
+		
+
+;(def right_wrist_connecter_x 25)	
+(def wrist-rest-base
+	(->> 
+		(scale [1 1 1] ;;;;scale the wrist rest to the final size after it has been cut
+			(difference 
+				(scale [1.08 1.08 1] wrist-rest )
+				(->> (cube 200 200 200)(translate [0 0 (+ (+ (/ h-offset 2) (- wrist-rest-back-height h-offset) ) 100)]) (rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0])(rotate  (/ (* π wrist-rest-y-angle) 180)  [0 1 0]))
+			;	(->> (cube 200 200 200)(translate [0 0 (+ (+ (- wrist-rest-back-height h-offset) (* 2 h-offset)) 100)]) (rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0]))
+			;	(->> (cube 200 200 200)(translate [0 0 (+ (+ (/ (* 88 (Math/tan(/ (* π wrist-rest-angle) 180))) 4) 100) wrist-rest-back-height)]) (rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0]))
+			(->> (difference 
+					wrist-rest
+					(->> (cube 200 200 200)(translate [0 0 (- (+ (/ h-offset 2) (- wrist-rest-back-height h-offset) ) (+ 100  wrist-rest-ledge))]) (rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0])(rotate  (/ (* π wrist-rest-y-angle) 180)  [0 1 0]))
+					;(->> (cube 200 200 200)(translate [0 0 (- (+ (/ (* 17.7 (Math/tan(/ (* π wrist-rest-angle) 180))) 4) wrist-rest-back-height)(+ 100  wrist-rest-ledge))])(rotate  (/ (* π wrist-rest-angle) 180)  [1 0 0])))
+				)
+			)
+		);(rotate  (/ (* π wrist-rest-rotation-angle) 180)  [0 0 1])
+	))
+)
+
+
+
+(def rest-case-cuts
+	(union
+	;;right cut
+			(->> (cylinder 1.85 50)(with-fn 30) (rotate  (/  π 2)  [1 0 0])(translate [right_wrist_connecter_x 24 4.5]))
+			; (->> (cylinder 2.8 5.2)(with-fn 50) (rotate  (/  π 2)  [1 0 0])(translate [right_wrist_connecter_x (+ 33.8 nrows) 4.5]))
+			(->> (cylinder 2.8 5.2)(with-fn 50) (rotate  (/  π 2)  [1 0 0])(translate [right_wrist_connecter_x 38 4.5]))
+			(->> (cube 6 3 12.2)(translate [right_wrist_connecter_x (+ wrist_right_nut_y nrows) 1.5]));;39
+	;;middle cut
+			(->> (cylinder 1.85 50)(with-fn 30) (rotate  (/  π 2)  [1 0 0])(translate [middle_wrist_connecter_x 14 4.5]))
+			(->> (cylinder 2.8 5.2)(with-fn 50) (rotate  (/  π 2)  [1 0 0])(translate [middle_wrist_connecter_x 30.75 4.5]))
+			; (->> (cylinder 2.8 5.2)(with-fn 50) (rotate  (/  π 2)  [1 0 0])(translate [middle_wrist_connecter_x 23 4.5]))
+			(->> (cube 6 3 12.2)(translate [middle_wrist_connecter_x (+ 10.0 nrows) 1.5]))
+			
+	;;left
+			(->> (cylinder 1.85 50)(with-fn 30) (rotate  (/  π 2)  [1 0 0])(translate [left_wrist_connecter_x 11 4.5]))
+			; (->> (cylinder 2.8 5.2)(with-fn 50) (rotate  (/  π 2)  [1 0 0])(translate [left_wrist_connecter_x (+ 17.25 nrows) 4.5]))
+			(->> (cylinder 2.8 5.2)(with-fn 50) (rotate  (/  π 2)  [1 0 0])(translate [left_wrist_connecter_x 31.5 4.5]))
+			(->> (cube 6 3 12.2)(translate [left_wrist_connecter_x (+ 6.0 nrows) 1.5]))
+	)
+)
+
+(def rest-case-connectors
+	(difference
+		(union
+			
+			(scale [1 1 1.6] (->> (cylinder 6 60)(with-fn 200) (rotate  (/  π 2)  [1 0 0])(translate [right_wrist_connecter_x 4 0])));;right
+			(scale [1 1 1.6] (->> (cylinder 6 60)(with-fn 200) (rotate  (/  π 2)  [1 0 0])(translate [middle_wrist_connecter_x -5 0])))
+			(scale [1 1 1.6] (->> (cylinder 6 60)(with-fn 200) (rotate  (/  π 2)  [1 0 0])(translate [left_wrist_connecter_x -9 0])))
+	;rest-case-cuts
+		)
+	)
+)
+	
+(def wrist-rest-locate
+(key-position 3 8 (map + (wall-locate1 0 (- 4.9 (* 2 nrows))) [0 (/ mount-height 2) 0]))
+
+)	
+	; (translate [(+ (first usb-holder-position ) 2) (second usb-holder-position) (/ (+ (last usb-holder-size) usb-holder-thickness) 2)]))
+	
+(def wrest-wall-cut		
+(->> (for [xyz (range 1.00 10 3)];controls the scale last number needs to be lower for thinner walls
+						 (union
+							(translate[1, xyz,1] case-walls)
+						  ;(translate [0 0 -3])
+						)
+					)
+			))
+	
+
+(def wrist-rest-build 
+	(difference 
+		(->> (union 
+		
+			(->> wrist-rest-base (translate [wrist_brse_position_x -32 0])(rotate  (/ (* π wrist-rest-rotation-angle) 180)  [0 0 1])) 
+					(->> (difference
+				;wrist-rest-sides 
+							
+							rest-case-connectors 
+							rest-case-cuts
+							cut-bottom
+					;	wrest-wall-cut
+							)
+							
+					)
+			)
+			 (translate [(+ (first thumborigin ) 33) (- (second thumborigin) 50) 0])		 	
+		)
+	 (translate [(+ (first thumborigin ) 33) (- (second thumborigin) 50) 0] rest-case-cuts)
+	wrest-wall-cut
+	))
+	
+	
 (def model-right (difference
                   (union
                    key-holes
@@ -711,8 +923,14 @@
                                usb-holder-space
                                usb-jack
                                trrs-holder-hole
+                              (if (== wrist-rest-on 1) (->> rest-case-cuts
+                                                            (translate [(+ (first thumborigin ) 33) (- (second thumborigin)  (- 56 nrows)) 0])
+                                                                            ;x                              y                     z 
+                                                        )
+                              )
                                screw-insert-holes))
                   (translate [0 0 -20] (cube 350 350 40))))
+
 
 (spit "things/right.scad"
       (write-scad model-right))
@@ -720,33 +938,37 @@
 (spit "things/left.scad"
       (write-scad (mirror [-1 0 0] model-right)))
 
-(spit "things/right-test.scad"
-      (write-scad
-       (difference
-        (union
-         key-holes
-         pinky-connectors
-         pinky-walls
-         connectors
-         thumb
-         thumb-connectors
-         case-walls
-         thumbcaps
-         caps)
+(spit "things/crystalform-wrist-rest.scad"
+      (write-scad wrist-rest-build))	  
 
-        (translate [0 0 -20] (cube 350 350 40)))))
 
-(spit "things/right-plate.scad"
-      (write-scad
-       (cut
-        (translate [0 0 -0.1]
-                   (difference (union case-walls
-                                      pinky-walls
-                                      screw-insert-outers)
-                               (translate [0 0 -10] screw-insert-screw-holes))))))
+; (spit "things/right-test.scad"
+;       (write-scad
+;        (difference
+;         (union
+;          key-holes
+;          pinky-connectors
+;          pinky-walls
+;          connectors
+;          thumb
+;          thumb-connectors
+;          case-walls
+;          thumbcaps
+;          caps)
+;
+;         (translate [0 0 -20] (cube 350 350 40)))))
+;
+; (spit "things/right-plate.scad"
+;       (write-scad
+;        (cut
+;         (translate [0 0 -0.1]
+;                    (difference (union case-walls
+;                                       pinky-walls
+;                                       screw-insert-outers)
+;                                (translate [0 0 -10] screw-insert-screw-holes))))))
 
-(spit "things/test.scad"
-      (write-scad
-       (difference trrs-holder trrs-holder-hole)))
+; (spit "things/test.scad"
+;       (write-scad
+;        (difference trrs-holder trrs-holder-hole)))
 
 (defn -main [dum] 1)  ; dummy to make it easier to batch
